@@ -1,16 +1,48 @@
-import os
-from dotenv import load_dotenv
+from pathlib import Path
+from typing import List
 
-load_dotenv()
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-SECRET_KEY = os.getenv("SECRET_KEY")
+BASE_DIR = Path(__file__).resolve().parent.parent  # backend/
 
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is missing in .env")
+class Settings(BaseSettings):
+    # ---------- App ----------
+    APP_NAME: str = "AI-Powered Crime Investigation & Forensic Evidence Management System"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = True
 
-if not SECRET_KEY:
-    raise ValueError("SECRET_KEY is missing in .env")
+    # ---------- Database ----------
+    # SQLite (default):      sqlite:///./forensic.db
+    # PostgreSQL (baad me):  postgresql+psycopg2://user:password@localhost:5432/forensic_db
+    DATABASE_URL: str = f"sqlite:///{(BASE_DIR / 'forensic.db').as_posix()}"
+
+    # ---------- Security / JWT ----------
+    SECRET_KEY: str = "change-this-secret-key-in-env-file"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # Admin account banane ke liye secret code
+    ADMIN_SIGNUP_CODE: str = "FYP-ADMIN-2026"
+
+    # ---------- CORS (frontend Vite default port 5173) ----------
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
+    # ---------- Evidence file storage ----------
+    UPLOAD_DIR: str = str(BASE_DIR / "uploads")
+    MAX_UPLOAD_SIZE_MB: int = 50
+
+    model_config = SettingsConfigDict(
+        env_file=str(BASE_DIR / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+settings = Settings()
+
+# Upload folder automatically ban jayega
+Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)

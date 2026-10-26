@@ -1,18 +1,28 @@
-# Secrets
-.env
-
 # Virtual environment
 venv/
+.venv/
+env/
 
 # Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
 
-# Editor and system files
-.vscode/
-.DS_Store
+# Secrets (kabhi push nahi karna)
+.env
+.env.*
 
-# Logs and local database files
-*.log
-*.sqlite3
+# Local database
 *.db
+*.sqlite3
+
+# Uploaded evidence files
+uploads/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
