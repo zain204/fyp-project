@@ -1,25 +1,24 @@
-from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
 
+from pydantic import BaseModel, EmailStr
 
-class RegisterRequest(BaseModel):
-    full_name: str = Field(min_length=2, max_length=100)
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+from app.models.user import UserRole
+from app.schemas.user import UserOut
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    # Login page batata hai (admin ya investigator). Role match na hua to access nahi milega.
+    role: Optional[UserRole] = None
 
 
-class UserResponse(BaseModel):
-    id: int
-    full_name: str
-    email: EmailStr
-    role: str
-    is_active: bool
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
 
 
-class TokenResponse(BaseModel):
+class SwaggerToken(BaseModel):
     access_token: str
     token_type: str = "bearer"
