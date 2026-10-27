@@ -7,6 +7,7 @@ from app.models.ai_finding import AIFinding
 from app.models.evidence_features import EvidenceFeatures
 from app.models.investigation_notes import InvestigationNote
 from app.models.report import Report
+from app.models.blockchain_block import BlockchainBlock
 
 __all__ = [
     "User",
@@ -21,4 +22,5 @@ __all__ = [
     "EvidenceFeatures",
     "InvestigationNote",
     "Report",
+    "BlockchainBlock",
 ]
