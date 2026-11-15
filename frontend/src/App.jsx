@@ -1,65 +1,62 @@
+import { Navigate, Route, Routes } from 'react-router-dom'
+import ProtectedRoute from './components/ProtectedRoute'
+import AppShell from './components/Layout/AppShell'
+import PublicLayout from './components/Layout/PublicLayout'
+import Landing from './pages/public/Landing'
+import InvestigatorLogin from './pages/InvestigatorLogin'
+import AdminLogin from './pages/AdminLogin'
+import InvestigatorSignup from './pages/InvestigatorSignup'
+import AdminSignup from './pages/AdminSignup'
+import Dashboard from './pages/Dashboard'
+import Cases from './pages/Cases'
+import CaseDetail from './pages/CaseDetail'
+import Evidence from './pages/Evidence'
+import EvidenceDetail from './pages/EvidenceDetail'
+import Integrity from './pages/Integrity'
+import Custody from './pages/Custody'
+import AIAnalysis from './pages/AIAnalysis'
+import Reports from './pages/Reports'
+import Profile from './pages/Profile'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminUsers from './pages/admin/AdminUsers'
+import AuditLogs from './pages/admin/AuditLogs'
+import { NotFound, Unauthorized } from './pages/NotFound'
 
-import "./App.css";
-
-function App() {
+export default function App() {
   return (
-    <div className="app">
-      <nav className="navbar">
-        <h2>Forensic<span>AI</span></h2>
-        <p>Digital Evidence Investigation System</p>
-      </nav>
+    <Routes>
+      <Route element={<PublicLayout />}><Route path="/" element={<Landing />} /></Route>
+      <Route path="/login" element={<InvestigatorLogin />} />
+      <Route path="/signup" element={<InvestigatorSignup />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin/signup" element={<AdminSignup />} />
+      <Route path="/unauthorized" element={<Unauthorized />} />
 
-      <main className="hero">
-        <div className="icon">⚖️</div>
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppShell />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/cases" element={<Cases />} />
+          <Route path="/cases/:id" element={<CaseDetail />} />
+          <Route path="/evidence" element={<Evidence />} />
+          <Route path="/evidence/:id" element={<EvidenceDetail />} />
+          <Route path="/integrity" element={<Integrity />} />
+          <Route path="/custody" element={<Custody />} />
+          <Route path="/analysis" element={<AIAnalysis />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
+      </Route>
 
-        <h1>
-          AI-Powered Crime Investigation
-          <br />
-          & Forensic Evidence Management
-        </h1>
+      <Route element={<ProtectedRoute roles={['admin']} />}>
+        <Route element={<AppShell />}>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/audit" element={<AuditLogs />} />
+        </Route>
+      </Route>
 
-        <p className="description">
-          A centralized platform to manage digital evidence,
-          maintain evidence integrity, and assist investigators
-          with AI-powered analysis.
-        </p>
-
-        <div className="buttons">
-          <button onClick={() => alert("Login module coming next!")}>
-            Investigator Login
-          </button>
-
-          <button
-            className="secondary"
-            onClick={() => alert("Admin module coming next!")}
-          >
-            Admin Portal
-          </button>
-        </div>
-
-        <div className="features">
-          <div>
-            <h3>SHA-256</h3>
-            <p>Evidence Integrity</p>
-          </div>
-
-          <div>
-            <h3>AI Analysis</h3>
-            <p>Digital Evidence Review</p>
-          </div>
-
-          <div>
-            <h3>Secure</h3>
-            <p>Case Management</p>
-          </div>
-        </div>
-      </main>
-
-      <footer>
-        Forensic Investigation System | Final Year Project
-      </footer>
-    </div>
-  );
+      <Route path="/home" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  )
 }
-
-export default App;
