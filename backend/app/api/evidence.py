@@ -81,12 +81,12 @@ def _get_case_for_user(db: Session, case_id: int, user: User) -> Case:
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Case nahi mila"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Case not found"
         )
     if user.role != UserRole.admin and case.investigator_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Ye case aap ko assign nahi hai",
+            detail="This case is not assigned to you",
         )
     return case
 
@@ -95,7 +95,7 @@ def _get_evidence_for_user(db: Session, evidence_id: int, user: User) -> Evidenc
     evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
     if not evidence:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Evidence nahi mila"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evidence not found"
         )
     _get_case_for_user(db, evidence.case_id, user)  # access check
     return evidence
@@ -111,7 +111,7 @@ def upload_evidence(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Upload: file save -> SHA-256 hash -> DB record -> blockchain block -> chain of custody."""
+    """Upload: save file -> SHA-256 hash -> DB record -> blockchain block -> chain of custody."""
     _get_case_for_user(db, case_id, current_user)
 
     saved = save_upload(file, case_id)
@@ -130,7 +130,7 @@ def upload_evidence(
             is_verified=True,
         )
         db.add(evidence)
-        db.flush()  # evidence.id mil jaye
+        db.flush()  # generates evidence.id
 
         block = add_evidence_block(db, evidence)
 
@@ -216,7 +216,7 @@ def download_evidence(
     if not path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Evidence ki file server pe maujood nahi hai",
+            detail="The evidence file is missing from the server",
         )
 
     _add_custody(db, evidence.id, current_user, "downloaded", request)
@@ -238,10 +238,10 @@ def verify_evidence(
     current_user: User = Depends(get_current_user),
 ):
     """
-    File ka hash dobara nikal ke check karta hai:
-    1) database me upload ke waqt wale hash se
-    2) blockchain ledger wale hash se
-    3) poori chain ki integrity
+    Recomputes the file hash and checks it against:
+    1) the hash stored in the database at upload time
+    2) the hash stored in the blockchain ledger
+    3) the integrity of the whole chain
     """
     evidence = _get_evidence_for_user(db, evidence_id, current_user)
     now = datetime.now(timezone.utc)
@@ -253,7 +253,7 @@ def verify_evidence(
     chain = verify_chain(db)
     path = resolve_path(evidence.file_path)
 
-    # ---- File ghaib ----
+    # ---- File is missing ----
     if not path.exists():
         evidence.is_verified = False
         _add_custody(
@@ -271,7 +271,7 @@ def verify_evidence(
             chain_valid=chain.is_valid,
             is_intact=False,
             status="missing",
-            message="Evidence ki file server se ghaib hai",
+            message="The evidence file is missing from the server",
             verified_at=now,
         )
 
@@ -283,14 +283,14 @@ def verify_evidence(
 
     if not intact:
         result_status = "tampered"
-        message = "WARNING: Evidence me tabdeeli hui hai, hash match nahi hua"
+        message = "WARNING: This evidence has been modified, the hash does not match"
     elif not chain.is_valid:
         intact = False
         result_status = "ledger_broken"
-        message = f"File original hai lekin blockchain chain kharab hai: {chain.message}"
+        message = f"The file is original but the blockchain is broken: {chain.message}"
     else:
         result_status = "intact"
-        message = "Evidence original hai, database aur blockchain dono ka hash match ho gaya"
+        message = "Evidence is original, the database and blockchain hashes both match"
 
     evidence.is_verified = intact
     _add_custody(
@@ -328,11 +328,11 @@ def delete_evidence(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """Sirf admin evidence delete kar sakta hai. Blockchain ka record phir bhi ledger me rehta hai."""
+    """Admin only. The blockchain record stays in the ledger even after deletion."""
     evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
     if not evidence:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Evidence nahi mila"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evidence not found"
         )
 
     stored_path = evidence.file_path

@@ -38,7 +38,7 @@ def _log(
 
 
 def _generate_case_number(db: Session) -> str:
-    """CASE-2026-001, CASE-2026-002 ... (har saal naye sirey se)."""
+    """CASE-2026-001, CASE-2026-002 ... (numbering restarts every year)."""
     year = datetime.now(timezone.utc).year
     prefix = f"CASE-{year}-"
     count = db.query(Case).filter(Case.case_number.like(f"{prefix}%")).count()
@@ -52,13 +52,13 @@ def _get_case_or_404(db: Session, case_id: int, user: User) -> Case:
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Case nahi mila"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Case not found"
         )
-    # Investigator sirf apna case dekh sakta hai, admin sab
+    # An investigator can only see their own cases, an admin can see all
     if user.role != UserRole.admin and case.investigator_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Ye case aap ko assign nahi hai",
+            detail="This case is not assigned to you",
         )
     return case
 
@@ -68,7 +68,7 @@ def _check_investigator_exists(db: Session, investigator_id: int) -> User:
     if not target or not target.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ye investigator maujood nahi hai",
+            detail="This investigator does not exist",
         )
     return target
 
@@ -83,7 +83,7 @@ def create_case(
 ):
     investigator_id = current_user.id
 
-    # Admin kisi aur ko case assign kar sakta hai
+    # An admin can assign the case to another investigator
     if data.investigator_id is not None and current_user.role == UserRole.admin:
         _check_investigator_exists(db, data.investigator_id)
         investigator_id = data.investigator_id
@@ -108,7 +108,7 @@ def create_case(
 def list_cases(
     status_filter: Optional[CaseStatus] = Query(default=None, alias="status"),
     priority: Optional[CasePriority] = None,
-    search: Optional[str] = Query(default=None, description="title ya case number me dhoondo"),
+    search: Optional[str] = Query(default=None, description="Search by title or case number"),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -132,7 +132,7 @@ def list_cases(
     return query.order_by(Case.created_at.desc()).offset(skip).limit(limit).all()
 
 
-# NOTE: /stats/summary ko /{case_id} se pehle rakhna zaroori hai
+# NOTE: /stats/summary must be declared before /{case_id}
 @router.get("/stats/summary", response_model=CaseStats)
 def case_stats(
     db: Session = Depends(get_db),
@@ -174,19 +174,19 @@ def update_case(
     case = _get_case_or_404(db, case_id, current_user)
     changes = data.model_dump(exclude_unset=True)
 
-    # Case dobara assign karna sirf admin ka kaam hai
+    # Only an admin can reassign a case
     if "investigator_id" in changes:
         if current_user.role != UserRole.admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Case assign sirf admin kar sakta hai",
+                detail="Only an admin can reassign a case",
             )
         if changes["investigator_id"] is not None:
             _check_investigator_exists(db, changes["investigator_id"])
         else:
             changes.pop("investigator_id")
 
-    # Ye fields khali (None) nahi ho sakte
+    # These fields cannot be set to null
     for field in ("title", "status", "priority"):
         if field in changes and changes[field] is None:
             changes.pop(field)
@@ -211,7 +211,7 @@ def delete_case(
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Case nahi mila"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Case not found"
         )
 
     number = case.case_number

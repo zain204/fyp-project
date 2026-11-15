@@ -43,14 +43,14 @@ def signup(data: UserCreate, request: Request, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Is email se account pehle se maujood hai",
+            detail="An account with this email already exists",
         )
 
-    # Admin banane ke liye secret code zaroori hai
+    # A secret code is required to create an admin account
     if data.role == UserRole.admin and data.admin_code != settings.ADMIN_SIGNUP_CODE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin code galat hai",
+            detail="Invalid admin code",
         )
 
     user = User(
@@ -76,20 +76,20 @@ def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
         _log(db, user.id if user else None, "LOGIN_FAILED", request, data.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ya password galat hai",
+            detail="Incorrect email or password",
         )
 
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Ye account deactivate hai",
+            detail="This account has been deactivated",
         )
 
-    # Admin login page se investigator (ya ulta) login nahi kar sakta
+    # An admin cannot log in from the investigator page (and vice versa)
     if data.role is not None and user.role != data.role:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Ye account {data.role.value} portal ke liye nahi hai",
+            detail=f"This account is not registered for the {data.role.value} portal",
         )
 
     token = create_access_token({"sub": str(user.id), "role": user.role.value})
@@ -103,12 +103,12 @@ def token_for_swagger(
     form: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    """Sirf Swagger ke 'Authorize' button ke liye. Username me email likhna hai."""
+    """Only for the Swagger 'Authorize' button. Enter your email as the username."""
     user = db.query(User).filter(User.email == form.username.lower()).first()
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ya password galat hai",
+            detail="Incorrect email or password",
         )
     token = create_access_token({"sub": str(user.id), "role": user.role.value})
     return SwaggerToken(access_token=token)

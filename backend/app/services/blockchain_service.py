@@ -49,7 +49,7 @@ def _latest_block(db: Session) -> Optional[BlockchainBlock]:
 
 
 def ensure_genesis_block(db: Session) -> BlockchainBlock:
-    """Pehla block (index 0). Agar chain khali hai to bana deta hai."""
+    """First block (index 0). Creates it if the chain is empty."""
     latest = _latest_block(db)
     if latest is not None:
         return latest
@@ -73,8 +73,8 @@ def ensure_genesis_block(db: Session) -> BlockchainBlock:
 
 def add_evidence_block(db: Session, evidence: Evidence) -> BlockchainBlock:
     """
-    Evidence ka hash ledger me naye block ki surat me add karta hai.
-    evidence.id hona zaroori hai (pehle db.flush() karo). Commit caller karega.
+    Adds the evidence hash to the ledger as a new block.
+    evidence.id must exist (call db.flush() first). The caller commits.
     """
     latest = ensure_genesis_block(db)
 
@@ -115,13 +115,13 @@ def get_block_for_evidence(db: Session, evidence_id: int) -> Optional[Blockchain
 
 
 def verify_chain(db: Session) -> ChainCheck:
-    """Poori chain check karta hai: index, previous_hash link aur har block ka apna hash."""
+    """Checks the whole chain: index order, previous_hash links and each block's own hash."""
     blocks = (
         db.query(BlockchainBlock).order_by(BlockchainBlock.block_index.asc()).all()
     )
 
     if not blocks:
-        return ChainCheck(True, 0, None, "Chain abhi khali hai")
+        return ChainCheck(True, 0, None, "The chain is empty")
 
     expected_prev = GENESIS_PREV_HASH
 
@@ -131,7 +131,7 @@ def verify_chain(db: Session) -> ChainCheck:
                 False,
                 len(blocks),
                 position,
-                f"Block {position} ghaib hai ya index tabdeel hua hai",
+                f"Block {position} is missing or its index was changed",
             )
 
         if block.previous_hash != expected_prev:
@@ -139,7 +139,7 @@ def verify_chain(db: Session) -> ChainCheck:
                 False,
                 len(blocks),
                 block.block_index,
-                f"Block {block.block_index} ka link toot gaya hai (previous hash match nahi hua)",
+                f"The link at block {block.block_index} is broken (previous hash does not match)",
             )
 
         recomputed = compute_block_hash(
@@ -155,9 +155,9 @@ def verify_chain(db: Session) -> ChainCheck:
                 False,
                 len(blocks),
                 block.block_index,
-                f"Block {block.block_index} ka data badla gaya hai (hash match nahi hua)",
+                f"The data in block {block.block_index} was modified (hash does not match)",
             )
 
         expected_prev = block.block_hash
 
-    return ChainCheck(True, len(blocks), None, "Poori chain theek hai, koi tabdeeli nahi hui")
+    return ChainCheck(True, len(blocks), None, "The whole chain is valid, no tampering detected")

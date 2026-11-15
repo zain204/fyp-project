@@ -11,33 +11,34 @@ from app.database.connection import Base, engine
 logger = logging.getLogger("uvicorn.error")
 
 # (module path, URL prefix, swagger tag)
-# Jo file abhi khali hai (router nahi bana), wo automatically skip ho jayegi
+# A module that does not define a router yet is skipped automatically
 ROUTER_MODULES = [
     ("app.api.auth", "/api/auth", "Authentication"),
     ("app.api.cases", "/api/cases", "Cases"),
     ("app.api.evidence", "/api/evidence", "Evidence"),
     ("app.api.analysis", "/api/analysis", "AI Analysis"),
     ("app.api.blockchain", "/api/blockchain", "Blockchain"),
+    ("app.api.notes", "/api/notes", "Investigation Notes"),
     ("app.api.reports", "/api/reports", "Reports"),
 ]
 
 
 def create_tables() -> None:
-    """Saare models import karke database tables bana deta hai."""
+    """Imports all models and creates the database tables."""
     try:
-        import app.models  # noqa: F401  (models/__init__.py me saare models import hone chahiye)
+        import app.models  # noqa: F401  (models/__init__.py must import every model)
     except ImportError as e:
-        logger.warning(f"Models import nahi hue: {e}")
+        logger.warning(f"Models could not be imported: {e}")
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables ready.")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Server start hone par
+    # Runs on server startup
     create_tables()
     yield
-    # Server band hone par (abhi kuch nahi)
+    # Runs on server shutdown (nothing to do yet)
 
 
 app = FastAPI(
@@ -47,7 +48,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ---------- CORS (React frontend ko allow karne ke liye) ----------
+# ---------- CORS (allows the React frontend to call the API) ----------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -57,18 +58,18 @@ app.add_middleware(
 )
 
 
-# ---------- Routers automatically include ----------
+# ---------- Automatically include routers ----------
 def include_routers() -> None:
     for module_path, prefix, tag in ROUTER_MODULES:
         try:
             module = importlib.import_module(module_path)
         except Exception as e:
-            logger.warning(f"Skip {module_path}: {e}")
+            logger.warning(f"Skipping {module_path}: {e}")
             continue
 
         router = getattr(module, "router", None)
         if router is None:
-            logger.warning(f"Skip {module_path}: 'router' abhi nahi bana")
+            logger.warning(f"Skipping {module_path}: no router defined yet")
             continue
 
         app.include_router(router, prefix=prefix, tags=[tag])
