@@ -1,15 +1,33 @@
+# Python virtual environments (any name)
+venv/
+.venv/
+.venv-*/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets
 .env
 .env.*
 !.env.example
-__pycache__/
-*.py[cod]
-.venv/
-venv/
+
+# Local database and uploaded evidence
+*.db
+*.sqlite3
+uploads/
+
+# Node / frontend
 node_modules/
 dist/
 build/
+.vite/
+npm-debug.log*
+
+# IDE / OS
 .vscode/
+.idea/
 .DS_Store
-*.log
-*.sqlite3
-*.db
+Thumbs.db
