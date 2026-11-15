@@ -14,7 +14,7 @@ CHUNK_SIZE = 1024 * 1024  # 1 MB
 class SavedFile:
     original_filename: str
     stored_filename: str
-    relative_path: str  # UPLOAD_DIR ke andar ka path, e.g. case_1/abc123.pdf
+    relative_path: str  # path inside UPLOAD_DIR, e.g. case_1/abc123.pdf
     size: int
     sha256: str
 
@@ -26,7 +26,7 @@ def _upload_root() -> Path:
 
 
 def resolve_path(relative_path: str) -> Path:
-    """Relative path ko asli path me badalta hai (upload folder se bahar nahi jane deta)."""
+    """Converts a relative path to a full path (never allows leaving the upload folder)."""
     root = _upload_root()
     full = (root / relative_path).resolve()
     if root not in full.parents and full != root:
@@ -38,12 +38,12 @@ def resolve_path(relative_path: str) -> Path:
 
 def save_upload(file: UploadFile, case_id: int) -> SavedFile:
     """
-    File ko disk pe save karta hai aur saath hi SHA-256 hash nikalta hai.
-    Hash upload ke dauran hi bante hain, is liye file do dafa nahi parhni parti.
+    Saves the file to disk and computes its SHA-256 hash at the same time,
+    so the file does not need to be read twice.
     """
     max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
-    original = Path(file.filename or "unnamed").name  # path tricks se bachao
+    original = Path(file.filename or "unnamed").name  # protects against path tricks
     extension = Path(original).suffix.lower()[:20]
     stored_name = f"{uuid.uuid4().hex}{extension}"
 
@@ -65,7 +65,7 @@ def save_upload(file: UploadFile, case_id: int) -> SavedFile:
                 if size > max_bytes:
                     raise HTTPException(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=f"File {settings.MAX_UPLOAD_SIZE_MB} MB se badi hai",
+                        detail=f"File is larger than {settings.MAX_UPLOAD_SIZE_MB} MB",
                     )
                 hasher.update(chunk)
                 out.write(chunk)
@@ -76,7 +76,7 @@ def save_upload(file: UploadFile, case_id: int) -> SavedFile:
     if size == 0:
         destination.unlink(missing_ok=True)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="File khali hai"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="The file is empty"
         )
 
     return SavedFile(
