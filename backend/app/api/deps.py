@@ -15,7 +15,7 @@ def get_current_user(
 ) -> User:
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Token invalid ya expire ho chuka hai",
+        detail="Invalid or expired token",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -34,7 +34,7 @@ def get_current_user(
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Ye account deactivate hai",
+            detail="This account is deactivated",
         )
 
     return user
@@ -44,6 +44,6 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != UserRole.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Sirf admin ye kaam kar sakta hai",
+            detail="This account is not for the admin portal",
         )
     return current_user

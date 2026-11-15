@@ -58,7 +58,7 @@ def _get_case_or_404(db: Session, case_id: int, user: User) -> Case:
     if user.role != UserRole.admin and case.investigator_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Ye case aap ko assign nahi hai",
+            detail="This case is not assigned to you",
         )
     return case
 
@@ -68,7 +68,7 @@ def _check_investigator_exists(db: Session, investigator_id: int) -> User:
     if not target or not target.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ye investigator maujood nahi hai",
+            detail="This investigator does not exist",
         )
     return target
 
@@ -108,7 +108,7 @@ def create_case(
 def list_cases(
     status_filter: Optional[CaseStatus] = Query(default=None, alias="status"),
     priority: Optional[CasePriority] = None,
-    search: Optional[str] = Query(default=None, description="title ya case number me dhoondo"),
+    search: Optional[str] = Query(default=None, description="Search by title or case number"),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -179,7 +179,7 @@ def update_case(
         if current_user.role != UserRole.admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Case assign sirf admin kar sakta hai",
+                detail="Only an administrator can assign a case",
             )
         if changes["investigator_id"] is not None:
             _check_investigator_exists(db, changes["investigator_id"])
